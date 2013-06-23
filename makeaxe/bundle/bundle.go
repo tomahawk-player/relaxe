@@ -56,16 +56,14 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 	metadata := make(map[string]interface{})
 	json.Unmarshal(metadataBytes, &metadata)
 
-	if metadata["pluginName"] != nil &&
+	if !(metadata["pluginName"] != nil &&
 		metadata["name"] != nil &&
 		metadata["version"] != nil &&
 		metadata["description"] != nil &&
 		metadata["type"] != nil &&
 		metadata["manifest"] != nil &&
 		metadata["manifest"].(map[string]interface{})["main"] != nil &&
-		metadata["manifest"].(map[string]interface{})["icon"] != nil {
-		fmt.Printf("* Metadata for bundle %v-%v looks ok.\n", metadata["pluginName"], metadata["version"])
-	} else {
+		metadata["manifest"].(map[string]interface{})["icon"] != nil) {
 		return fmt.Errorf("Bad metadata file in %v.", metadataPath)
 	}
 	pluginName := metadata["pluginName"].(string)
@@ -76,7 +74,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 
 	ex, err = util.ExistsFile(outputFilePath)
 	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
-		fmt.Printf("* %v already exists, skipping.", outputFileName)
+		fmt.Printf("* %v already exists, skipping.\n", outputFileName)
 		return nil
 	}
 
@@ -96,7 +94,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 		if err == nil { //we are in a git repo
 			metadata["revision"] = strings.TrimSpace(string(revision))
 		} else {
-			fmt.Printf("Warning: cannot get revision hash for %v-%v.", pluginName, version)
+			fmt.Printf("Warning: cannot get revision hash for %v-%v.\n", pluginName, version)
 		}
 	}
 
@@ -161,13 +159,13 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 
 	sumFile, err := util.Md5sum(outputFilePath)
 	if err != nil {
-		fmt.Printf("Warning: could not create MD5 hash file for %v.", outputFileName)
+		fmt.Printf("Warning: could not create MD5 hash file for %v.\n", outputFileName)
 	}
 	sumFile += "\t" + outputFileName
 	sumFilePath := path.Join(outputPath, pluginName+"-"+version+".md5")
 	err = ioutil.WriteFile(sumFilePath, []byte(sumFile), 0644)
 
-	fmt.Printf("* Created axe in %v.", outputFilePath)
+	fmt.Printf("* Created axe in %v.\n", outputFilePath)
 
 	return nil
 }

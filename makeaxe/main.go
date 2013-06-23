@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"github.com/teo/relaxe/makeaxe/bundle"
 	"github.com/teo/relaxe/makeaxe/util"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -133,9 +135,33 @@ func main() {
 		}
 	}
 
-	err = bundle.Package(inputPath, outputPath, release, force)
-	if err != nil {
-		bail(err.Error())
+	if all {
+		contents, err := ioutil.ReadDir(inputPath)
+		if err != nil {
+			bail(err.Error())
+		}
+		for _, entry := range contents {
+			if !entry.IsDir() {
+				continue
+			}
+			metadataPath := path.Join(inputPath, entry.Name(), "content", "metadata.json")
+			ex, err := util.ExistsFile(metadataPath)
+			if !ex || err != nil {
+				fmt.Printf("%v does not seem to be a resolver directory, skipping.\n", entry.Name())
+				continue
+			}
+			err = bundle.Package(path.Join(inputPath, entry.Name()), outputPath, release, force)
+			if err != nil {
+				fmt.Printf("Warning: could not build resolver in directory %v.\n", entry.Name())
+				continue
+			}
+		}
+
+	} else {
+		err = bundle.Package(inputPath, outputPath, release, force)
+		if err != nil {
+			bail(err.Error())
+		}
 	}
 
 }
