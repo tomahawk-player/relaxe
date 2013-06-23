@@ -35,7 +35,7 @@ const (
 	bundleVersion = "1"
 )
 
-func Package(inputPath string, outputPath string, release bool) error {
+func Package(inputPath string, outputPath string, release bool, force bool) error {
 	metadataRelPath := "content/metadata.json"
 	metadataPath := path.Join(inputPath, metadataRelPath)
 
@@ -55,7 +55,6 @@ func Package(inputPath string, outputPath string, release bool) error {
 
 	metadata := make(map[string]interface{})
 	json.Unmarshal(metadataBytes, &metadata)
-	fmt.Println(metadata)
 
 	if metadata["pluginName"] != nil &&
 		metadata["name"] != nil &&
@@ -71,6 +70,15 @@ func Package(inputPath string, outputPath string, release bool) error {
 	}
 	pluginName := metadata["pluginName"].(string)
 	version := metadata["version"].(string)
+
+	outputFileName := pluginName + "-" + version + ".axe"
+	outputFilePath := path.Join(outputPath, outputFileName)
+
+	ex, err = util.ExistsFile(outputFilePath)
+	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
+		fmt.Printf("* %v already exists, skipping.", outputFileName)
+		return nil
+	}
 
 	// Let's add some stuff to the metadata file, this is information that's much
 	// easier to fill in automatically now than manually whenever.
@@ -112,9 +120,6 @@ func Package(inputPath string, outputPath string, release bool) error {
 			filesToZip = append(filesToZip, path.Join("content", s.(string)))
 		}
 	}
-
-	outputFileName := pluginName + "-" + version + ".axe"
-	outputFilePath := path.Join(outputPath, outputFileName)
 
 	ex, err = util.ExistsFile(outputFilePath)
 	if ex || err != nil {

@@ -133,7 +133,7 @@ func main() {
 		}
 	}
 
-	err = bundle.Package(inputPath, outputPath, release)
+	err = bundle.Package(inputPath, outputPath, release, force)
 	if err != nil {
 		bail(err.Error())
 	}
