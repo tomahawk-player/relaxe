@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/teo/relaxe/makeaxe/bundle"
+	"github.com/teo/relaxe/makeaxe/util"
 	"os"
 	"path/filepath"
 )
@@ -30,7 +31,6 @@ const (
 	programName        = "makeaxe"
 	programDescription = "the Tomahawk resolver bundle creator"
 	programVersion     = "0.1"
-	bundleVersion      = "1"
 )
 
 var (
@@ -40,30 +40,6 @@ var (
 	help    bool
 	ver     bool
 )
-
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
-
-func existsDir(path string) (bool, error) {
-	ex, err := exists(path)
-	if !ex || err != nil {
-		return ex, err
-	}
-
-	st, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	return st.IsDir(), nil
-}
 
 func usage() {
 	fmt.Printf("*** %v - %v ***\n\n", programName, programDescription)
@@ -140,7 +116,7 @@ func main() {
 	if err != nil {
 		bail("Error: bad source directory path.")
 	}
-	if ex, err := existsDir(inputPath); !ex || err != nil {
+	if ex, err := util.ExistsDir(inputPath); !ex || err != nil {
 		bail("Error: bad source directory path.")
 	}
 
@@ -152,11 +128,14 @@ func main() {
 		if err != nil {
 			bail("Error: bad destination directory path.")
 		}
-		if ex, err := existsDir(outputPath); !ex || err != nil {
+		if ex, err := util.ExistsDir(outputPath); !ex || err != nil {
 			bail("Error: bad destination directory path.")
 		}
 	}
 
-	bundle.Make()
+	err = bundle.Package(inputPath, outputPath, release)
+	if err != nil {
+		bail(err.Error())
+	}
 
 }
