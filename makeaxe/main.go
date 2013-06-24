@@ -19,6 +19,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/teo/relaxe/makeaxe/bundle"
@@ -41,25 +42,28 @@ var (
 	force   bool
 	help    bool
 	ver     bool
+	relaxe  bool
 )
 
 func usage() {
 	fmt.Printf("*** %v - %v ***\n\n", programName, programDescription)
-	fmt.Println("Usage: ./makeaxe [OPTIONS] SOURCE [DESTINATION]")
+	fmt.Println("Usage: ./makeaxe [OPTIONS] SOURCE [DESTINATION|CONFIG]")
 	fmt.Println("OPTIONS")
 	flag.VisitAll(func(f *flag.Flag) {
 		if len(f.Name) < 2 {
 			return
 		}
-		fmt.Printf("\t--%v, -%v\t%v\n", f.Name, f.Name[:1], f.Usage)
+		fmt.Printf("\t%v\n", f.Usage)
 	})
 	fmt.Println("ARGUMENTS")
 	fmt.Println("\tSOURCE\t\tMandatory, the path of the unpackaged base directory. " +
 		"\n\t\t\tWhen building a single axe, this should be the parent of the directory that contains a metadata.json file. " +
-		"\n\t\t\tIf building all resolvers (--all) this should be the parent directory of all the resolvers.")
+		"\n\t\t\tIf building all resolvers (--all, -a) this should be the parent directory of all the resolvers.")
 
 	fmt.Println("\tDESTINATION\tOptional, the path of the directory where newly built bundles (axes) should be placed. " +
-		"\n\t\t\tIf unset, it is the same as the source directory.")
+		"\n\t\t\tIf unset, it is the same as the source directory. Not used when publishing to Relaxe (--relaxe, -x).")
+
+	fmt.Println("\tCONFIG\t\tOnly when publishing to Relaxe (--relaxe, -x), the path of the Relaxe configuration file.")
 }
 
 func version() {
@@ -74,11 +78,12 @@ func bail(message string) {
 
 func init() {
 	const (
-		flagAllUsage     = "build all the resolvers in the SOURCE path's subdirectories"
-		flagReleaseUsage = "skip trying to add the git revision hash to a bundle"
-		flagForceUsage   = "build a bundle and overwrite even if the destination directory already contains a bundle of the same name and version"
-		flagHelpUsage    = "this help message"
-		flagVersionUsage = "show version information"
+		flagAllUsage     = "--all, -a\tbuild all the resolvers in the SOURCE path's subdirectories"
+		flagReleaseUsage = "--release, -r\tskip trying to add the git revision hash to a bundle"
+		flagForceUsage   = "--force, -f\tbuild a bundle and overwrite even if the destination directory already contains a bundle of the same name and version"
+		flagHelpUsage    = "--help, -h\tthis help message"
+		flagVersionUsage = "--version, -v\tshow version information"
+		flagRelaxeUsage  = "--relaxe, -x\tpublish resolvers on a Relaxe instance with the given config file, implies --release and ignores --force and DESTINATION"
 	)
 	flag.BoolVar(&all, "all", false, flagAllUsage)
 	flag.BoolVar(&all, "a", false, flagAllUsage+" (shorthand)")
@@ -90,7 +95,8 @@ func init() {
 	flag.BoolVar(&help, "h", false, flagHelpUsage)
 	flag.BoolVar(&ver, "version", false, flagVersionUsage)
 	flag.BoolVar(&ver, "v", false, flagVersionUsage)
-
+	flag.BoolVar(&relaxe, "relaxe", false, flagRelaxeUsage)
+	flag.BoolVar(&relaxe, "x", false, flagRelaxeUsage)
 }
 
 func main() {
@@ -123,18 +129,42 @@ func main() {
 	}
 
 	var outputPath string
-	if len(flag.Args()) == 1 {
-		outputPath = inputPath
-	} else { //len is 2
-		outputPath, err = filepath.Abs(flag.Arg(1))
-		if err != nil {
-			bail("Error: bad destination directory path.")
+	if relaxe {
+		if len(flag.Args()) != 2 {
+			bail("Error: source or Relaxe configuration file path missing.")
 		}
-		if ex, err := util.ExistsDir(outputPath); !ex || err != nil {
-			bail("Error: bad destination directory path.")
+		configFilePath, err := filepath.Abs(flag.Arg(1))
+		if err != nil {
+			bail("Error: bad Relaxe configuration file path.")
+		}
+		if ex, err := util.ExistsFile(configFilePath); !ex || err != nil {
+			bail("Error: bad Relaxe configuration file path.")
+		}
+
+		configFileBytes, err := ioutil.ReadFile(configFilePath)
+		if err != nil {
+			bail("Error: cannot read Relaxe configuration file.")
+		}
+
+		configFileBytes = util.StripComments(configFileBytes)
+		config := make(map[string]interface{})
+		err = json.Unmarshal(configFileBytes, &config)
+		//read config and write output path
+	} else {
+		if len(flag.Args()) == 1 {
+			outputPath = inputPath
+		} else { //len is 2
+			outputPath, err = filepath.Abs(flag.Arg(1))
+			if err != nil {
+				bail("Error: bad destination directory path.")
+			}
+			if ex, err := util.ExistsDir(outputPath); !ex || err != nil {
+				bail("Error: bad destination directory path.")
+			}
 		}
 	}
 
+	// Build operations
 	if all {
 		contents, err := ioutil.ReadDir(inputPath)
 		if err != nil {

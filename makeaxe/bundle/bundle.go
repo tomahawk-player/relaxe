@@ -54,16 +54,17 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 	}
 
 	metadata := make(map[string]interface{})
-	json.Unmarshal(metadataBytes, &metadata)
+	err = json.Unmarshal(metadataBytes, &metadata)
 
-	if !(metadata["pluginName"] != nil &&
-		metadata["name"] != nil &&
-		metadata["version"] != nil &&
-		metadata["description"] != nil &&
-		metadata["type"] != nil &&
-		metadata["manifest"] != nil &&
-		metadata["manifest"].(map[string]interface{})["main"] != nil &&
-		metadata["manifest"].(map[string]interface{})["icon"] != nil) {
+	if err != nil ||
+		!(metadata["pluginName"] != nil &&
+			metadata["name"] != nil &&
+			metadata["version"] != nil &&
+			metadata["description"] != nil &&
+			metadata["type"] != nil &&
+			metadata["manifest"] != nil &&
+			metadata["manifest"].(map[string]interface{})["main"] != nil &&
+			metadata["manifest"].(map[string]interface{})["icon"] != nil) {
 		return fmt.Errorf("Bad metadata file in %v.", metadataPath)
 	}
 	pluginName := metadata["pluginName"].(string)
