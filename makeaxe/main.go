@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/teo/jsonmin"
 	"github.com/teo/relaxe/makeaxe/bundle"
 	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
@@ -146,7 +147,7 @@ func main() {
 			bail("Error: cannot read Relaxe configuration file.")
 		}
 
-		configFileBytes = util.StripComments(configFileBytes)
+		configFileBytes, _ = jsonmin.Minify(configFileBytes, false)
 		config := make(map[string]interface{})
 		err = json.Unmarshal(configFileBytes, &config)
 		//read config and write output path

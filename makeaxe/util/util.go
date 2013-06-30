@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"regexp"
 )
 
 func exists(path string) (bool, error) {
@@ -61,12 +60,6 @@ func ExistsFile(path string) (bool, error) {
 		return false, err
 	}
 	return !st.IsDir(), nil
-}
-
-func StripComments(json []byte) []byte {
-	re := regexp.MustCompile("(?s)//.*?\n|/\\*.*?\\*/")
-	newJson := re.ReplaceAll(json, nil)
-	return newJson
 }
 
 func Md5sum(filePath string) (string, error) {
