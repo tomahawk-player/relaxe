@@ -99,6 +99,44 @@ func init() {
 	flag.BoolVar(&relaxe, "x", false, flagRelaxeUsage)
 }
 
+func preparePaths(inputPath string) []string {
+	inputList := []string{}
+	if all {
+		contents, err := ioutil.ReadDir(inputPath)
+		if err != nil {
+			bail(err.Error())
+		}
+		for _, entry := range contents {
+			if !entry.IsDir() {
+				continue
+			}
+			realInputPath := path.Join(inputPath, entry.Name())
+			metadataPath := path.Join(realInputPath, "content", "metadata.json")
+			ex, err := util.ExistsFile(metadataPath)
+			if !ex || err != nil {
+				fmt.Printf("%v does not seem to be an axe directory, skipping.\n", entry.Name())
+				continue
+			}
+			inputList = append(inputList, realInputPath)
+		}
+
+	} else {
+		inputList = append(inputList, inputPath)
+	}
+	return inputList
+}
+
+func build(inputList []string, outputPath string) {
+	// Build operations
+	for _, inputDirPath := range inputList {
+		_, err := bundle.Package(inputDirPath, outputPath, release, force)
+		if err != nil {
+			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			continue
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -162,40 +200,6 @@ func main() {
 		}
 	}
 
-	build(inputPath, outputPath)
-}
-
-func build(inputPath string, outputPath string) {
-	// Build operations
-	if all {
-		contents, err := ioutil.ReadDir(inputPath)
-		if err != nil {
-			bail(err.Error())
-		}
-		for _, entry := range contents {
-			if !entry.IsDir() {
-				continue
-			}
-			realInputPath := path.Join(inputPath, entry.Name())
-			metadataPath := path.Join(realInputPath, "content", "metadata.json")
-			ex, err := util.ExistsFile(metadataPath)
-			if !ex || err != nil {
-				fmt.Printf("%v does not seem to be an axe directory, skipping.\n", entry.Name())
-				continue
-			}
-
-			_, err = bundle.Package(realInputPath, outputPath, release, force)
-			if err != nil {
-				fmt.Printf("Warning: could not build axe for directory %v.\n", entry.Name())
-				continue
-			}
-		}
-
-	} else {
-		_, err := bundle.Package(inputPath, outputPath, release, force)
-		if err != nil {
-			bail(err.Error())
-		}
-	}
-
+	inputList := preparePaths(inputPath)
+	build(inputList, outputPath)
 }
