@@ -126,8 +126,26 @@ func preparePaths(inputPath string) []string {
 	return inputList
 }
 
-func build(inputList []string, outputPath string) {
-	// Build operations
+func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
+	if !relaxe {
+		bail("Error: cannot push to Relaxe in directory mode.")
+	}
+	outputPath := relaxeConfig.CacheDirectory
+	for _, inputDirPath := range inputList {
+		metadataBytes, err := bundle.Package(inputDirPath, outputPath, true /*release*/, false /*force*/)
+		if err != nil {
+			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			continue
+		}
+		fmt.Println("Will push to Relaxe:\n" + string(metadataBytes))
+	}
+}
+
+func buildToDirectory(inputList []string, outputPath string) {
+	if relaxe {
+		bail("Error: cannot build to directory in Relaxe mode.")
+	}
+
 	for _, inputDirPath := range inputList {
 		_, err := bundle.Package(inputDirPath, outputPath, release, force)
 		if err != nil {
@@ -158,6 +176,7 @@ func main() {
 		bail("Error: too many arguments.")
 	}
 
+	// Prepare input directory path(s)
 	inputPath, err := filepath.Abs(flag.Arg(0))
 	if err != nil {
 		bail("Error: bad source directory path.")
@@ -166,7 +185,9 @@ func main() {
 		bail("Error: bad source directory path.")
 	}
 
-	var outputPath string
+	inputList := preparePaths(inputPath)
+
+	// Prepare output directory path and build
 	if relaxe {
 		if len(flag.Args()) != 2 {
 			bail("Error: source or Relaxe configuration file path missing.")
@@ -183,10 +204,13 @@ func main() {
 		if err != nil {
 			bail(err.Error())
 		}
-		outputPath = config.CacheDirectory
-		bail(outputPath + "\n" + config.Database.ConnectionString)
-		//read config and write output path
+		bail(config.CacheDirectory + "\n" + config.Database.ConnectionString)
+
+		buildToRelaxe(inputList, *config)
+
 	} else {
+		var outputPath string
+
 		if len(flag.Args()) == 1 {
 			outputPath = inputPath
 		} else { //len is 2
@@ -198,8 +222,7 @@ func main() {
 				bail("Error: bad destination directory path.")
 			}
 		}
-	}
 
-	inputList := preparePaths(inputPath)
-	build(inputList, outputPath)
+		buildToDirectory(inputList, outputPath)
+	}
 }
