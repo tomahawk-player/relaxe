@@ -35,22 +35,22 @@ const (
 	bundleVersion = "1"
 )
 
-func Package(inputPath string, outputPath string, release bool, force bool) error {
+func Package(inputPath string, outputPath string, release bool, force bool) ([]byte, error) {
 	metadataRelPath := "content/metadata.json"
 	metadataPath := path.Join(inputPath, metadataRelPath)
 
 	ex, err := util.ExistsFile(metadataPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !ex {
-		return fmt.Errorf("Cannot find metadata file in %v. Make sure %v exists and is readable.",
+		return nil, fmt.Errorf("Cannot find metadata file in %v. Make sure %v exists and is readable.",
 			inputPath, metadataRelPath)
 	}
 
 	metadataBytes, err := ioutil.ReadFile(metadataPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	metadata := make(map[string]interface{})
@@ -65,7 +65,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 			metadata["manifest"] != nil &&
 			metadata["manifest"].(map[string]interface{})["main"] != nil &&
 			metadata["manifest"].(map[string]interface{})["icon"] != nil) {
-		return fmt.Errorf("Bad metadata file in %v.", metadataPath)
+		return nil, fmt.Errorf("Bad metadata file in %v.", metadataPath)
 	}
 	pluginName := metadata["pluginName"].(string)
 	version := metadata["version"].(string)
@@ -76,7 +76,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 	ex, err = util.ExistsFile(outputFilePath)
 	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
 		fmt.Printf("* %v already exists, skipping.\n", outputFileName)
-		return nil
+		return nil, nil
 	}
 
 	// Let's add some stuff to the metadata file, this is information that's much
@@ -101,7 +101,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 
 	metadataToWrite, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Let's do some zipping according to the manifest.
@@ -123,13 +123,13 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 	ex, err = util.ExistsFile(outputFilePath)
 	if ex || err != nil {
 		if err := os.Remove(outputFilePath); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	f, err := os.Create(outputFilePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
@@ -138,24 +138,24 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 	for _, fileName := range filesToZip {
 		currentFile, err := z.Create(fileName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		body, err := ioutil.ReadFile(path.Join(inputPath, fileName))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		_, err = currentFile.Write(body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	currentFile, err := z.Create(metadataRelPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	_, err = currentFile.Write(metadataToWrite)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sumFile, err := util.Md5sum(outputFilePath)
@@ -168,5 +168,5 @@ func Package(inputPath string, outputPath string, release bool, force bool) erro
 
 	fmt.Printf("* Created axe in %v.\n", outputFilePath)
 
-	return nil
+	return metadataBytes, nil
 }

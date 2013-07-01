@@ -19,10 +19,9 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/teo/jsonmin"
+	"github.com/teo/relaxe/common"
 	"github.com/teo/relaxe/makeaxe/bundle"
 	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
@@ -142,14 +141,12 @@ func main() {
 			bail("Error: bad Relaxe configuration file path.")
 		}
 
-		configFileBytes, err := ioutil.ReadFile(configFilePath)
+		config, err := common.LoadConfig(configFilePath)
 		if err != nil {
-			bail("Error: cannot read Relaxe configuration file.")
+			bail(err.Error())
 		}
-
-		configFileBytes, _ = jsonmin.Minify(configFileBytes, false)
-		config := make(map[string]interface{})
-		err = json.Unmarshal(configFileBytes, &config)
+		outputPath = config.CacheDirectory
+		bail(outputPath + "\n" + config.Database.ConnectionString)
 		//read config and write output path
 	} else {
 		if len(flag.Args()) == 1 {
@@ -165,6 +162,10 @@ func main() {
 		}
 	}
 
+	build(inputPath, outputPath)
+}
+
+func build(inputPath string, outputPath string) {
 	// Build operations
 	if all {
 		contents, err := ioutil.ReadDir(inputPath)
@@ -175,21 +176,23 @@ func main() {
 			if !entry.IsDir() {
 				continue
 			}
-			metadataPath := path.Join(inputPath, entry.Name(), "content", "metadata.json")
+			realInputPath := path.Join(inputPath, entry.Name())
+			metadataPath := path.Join(realInputPath, "content", "metadata.json")
 			ex, err := util.ExistsFile(metadataPath)
 			if !ex || err != nil {
-				fmt.Printf("%v does not seem to be a resolver directory, skipping.\n", entry.Name())
+				fmt.Printf("%v does not seem to be an axe directory, skipping.\n", entry.Name())
 				continue
 			}
-			err = bundle.Package(path.Join(inputPath, entry.Name()), outputPath, release, force)
+
+			_, err = bundle.Package(realInputPath, outputPath, release, force)
 			if err != nil {
-				fmt.Printf("Warning: could not build resolver in directory %v.\n", entry.Name())
+				fmt.Printf("Warning: could not build axe for directory %v.\n", entry.Name())
 				continue
 			}
 		}
 
 	} else {
-		err = bundle.Package(inputPath, outputPath, release, force)
+		_, err := bundle.Package(inputPath, outputPath, release, force)
 		if err != nil {
 			bail(err.Error())
 		}
