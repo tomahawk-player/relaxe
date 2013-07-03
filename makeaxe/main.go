@@ -28,6 +28,7 @@ import (
 	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"os"
 	"path"
 	"path/filepath"
@@ -151,6 +152,17 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 			continue
 		}
 
+		count, err := c.Find(bson.M{"pluginname": b.Metadata.PluginName, "version": b.Metadata.Version}).Count()
+
+		if err != nil {
+			fmt.Printf("Warning: Relaxe database error. %v\n", err.Error())
+			continue
+		}
+		if count != 0 { //if Relaxe already has axes of the same pluginName and version
+			fmt.Printf("Warning: axe %v-%v is already published on Relaxe. Skipping.\n", b.Metadata.PluginName, b.Metadata.Version)
+			continue
+		}
+
 		u, err := uuid.NewV4()
 		axeUuid := u.String()
 
@@ -165,7 +177,7 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 
 		mrshld, _ := json.MarshalIndent(b.Metadata, "", "  ")
 		fmt.Println("Pushing to Relaxe:\n" + string(mrshld))
-		c.Insert()
+		c.Insert(b.Metadata)
 	}
 }
 
