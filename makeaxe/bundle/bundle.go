@@ -22,6 +22,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"github.com/teo/relaxe/common"
 	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
 	"os"
@@ -32,43 +33,45 @@ import (
 )
 
 const (
-	bundleVersion = "1"
+	bundleVersion = "2"
 )
 
-func Package(inputPath string, outputPath string, release bool, force bool) ([]byte, error) {
+func Package(inputPath string, outputPath string, release bool, force bool) (*common.Axe_v2, string, error) {
 	metadataRelPath := "content/metadata.json"
 	metadataPath := path.Join(inputPath, metadataRelPath)
 
 	ex, err := util.ExistsFile(metadataPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !ex {
-		return nil, fmt.Errorf("Cannot find metadata file in %v. Make sure %v exists and is readable.",
+		return nil, "", fmt.Errorf("Cannot find metadata file in %v. Make sure %v exists and is readable.",
 			inputPath, metadataRelPath)
 	}
 
 	metadataBytes, err := ioutil.ReadFile(metadataPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	metadata := make(map[string]interface{})
+	metadata := common.Axe_v2{}
 	err = json.Unmarshal(metadataBytes, &metadata)
 
-	if err != nil ||
-		!(metadata["pluginName"] != nil &&
-			metadata["name"] != nil &&
-			metadata["version"] != nil &&
-			metadata["description"] != nil &&
-			metadata["type"] != nil &&
-			metadata["manifest"] != nil &&
-			metadata["manifest"].(map[string]interface{})["main"] != nil &&
-			metadata["manifest"].(map[string]interface{})["icon"] != nil) {
-		return nil, fmt.Errorf("Bad metadata file in %v.", metadataPath)
+	if err != nil || !common.Axe_v2check(&metadata) {
+		return nil, "", fmt.Errorf("Bad metadata file in %v.", metadataPath)
 	}
-	pluginName := metadata["pluginName"].(string)
-	version := metadata["version"].(string)
+	pluginName := metadata.PluginName
+	version := metadata.Version
+
+	if metadata.Author != "" || metadata.Email != "" {
+		fmt.Println("Warning: author and email fields are deprecated in metadata.json. Replace them with Authors array.")
+		if len(metadata.Authors) == 0 {
+			metadata.Authors = append(metadata.Authors, struct {
+				Name  string `json:"name"`
+				Email string `json:"email"`
+			}{metadata.Author, metadata.Email})
+		}
+	}
 
 	outputFileName := pluginName + "-" + version + ".axe"
 	outputFilePath := path.Join(outputPath, outputFileName)
@@ -76,7 +79,7 @@ func Package(inputPath string, outputPath string, release bool, force bool) ([]b
 	ex, err = util.ExistsFile(outputFilePath)
 	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
 		fmt.Printf("* %v already exists, skipping.\n", outputFileName)
-		return nil, nil
+		return nil, outputFilePath, nil
 	}
 
 	// Let's add some stuff to the metadata file, this is information that's much
@@ -85,15 +88,14 @@ func Package(inputPath string, outputPath string, release bool, force bool) ([]b
 	//   * Git revision because it makes sense, especially during development.
 	//   * Bundle format version, which might never be used but we add it just in
 	//     case we ever need to distinguish one bundle format from another.
-	//	 * Strip comments.
-	metadata["timestamp"] = time.Now().Unix()
-	metadata["bundleVersion"] = bundleVersion
+	metadata.Timestamp = time.Now().Unix()
+	metadata.BundleVersion = bundleVersion
 	if !release {
 		gitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
 		gitCmd.Dir = inputPath
 		revision, err := gitCmd.Output()
 		if err == nil { //we are in a git repo
-			metadata["revision"] = strings.TrimSpace(string(revision))
+			metadata.Revision = strings.TrimSpace(string(revision))
 		} else {
 			fmt.Printf("Warning: cannot get revision hash for %v-%v.\n", pluginName, version)
 		}
@@ -101,35 +103,35 @@ func Package(inputPath string, outputPath string, release bool, force bool) ([]b
 
 	metadataToWrite, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Let's do some zipping according to the manifest.
 	filesToZip := []string{}
-	m := metadata["manifest"].(map[string]interface{})
-	filesToZip = append(filesToZip, path.Join("content", m["main"].(string)))
-	if m["scripts"] != nil {
-		for _, s := range m["scripts"].([]interface{}) {
-			filesToZip = append(filesToZip, path.Join("content", s.(string)))
+	m := metadata.Manifest
+	filesToZip = append(filesToZip, path.Join("content", m.Main))
+	if m.Scripts != nil {
+		for _, s := range m.Scripts {
+			filesToZip = append(filesToZip, path.Join("content", s))
 		}
 	}
-	filesToZip = append(filesToZip, path.Join("content", m["icon"].(string)))
-	if m["resources"] != nil {
-		for _, s := range m["resources"].([]interface{}) {
-			filesToZip = append(filesToZip, path.Join("content", s.(string)))
+	filesToZip = append(filesToZip, path.Join("content", m.Icon))
+	if m.Resources != nil {
+		for _, s := range m.Resources {
+			filesToZip = append(filesToZip, path.Join("content", s))
 		}
 	}
 
 	ex, err = util.ExistsFile(outputFilePath)
 	if ex || err != nil {
 		if err := os.Remove(outputFilePath); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	f, err := os.Create(outputFilePath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer f.Close()
 
@@ -138,24 +140,24 @@ func Package(inputPath string, outputPath string, release bool, force bool) ([]b
 	for _, fileName := range filesToZip {
 		currentFile, err := z.Create(fileName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		body, err := ioutil.ReadFile(path.Join(inputPath, fileName))
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		_, err = currentFile.Write(body)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 	currentFile, err := z.Create(metadataRelPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	_, err = currentFile.Write(metadataToWrite)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	sumFile, err := util.Md5sum(outputFilePath)
@@ -166,7 +168,5 @@ func Package(inputPath string, outputPath string, release bool, force bool) ([]b
 	sumFilePath := path.Join(outputPath, pluginName+"-"+version+".md5")
 	err = ioutil.WriteFile(sumFilePath, []byte(sumFile), 0644)
 
-	fmt.Printf("* Created axe in %v.\n", outputFilePath)
-
-	return metadataBytes, nil
+	return &metadata, outputFilePath, nil
 }
