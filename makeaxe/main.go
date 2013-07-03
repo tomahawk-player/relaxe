@@ -31,7 +31,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 )
 
 const (
@@ -146,50 +145,25 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 
 	outputPath := relaxeConfig.CacheDirectory
 	for _, inputDirPath := range inputList {
-		metadata, outputFilePath, err := bundle.Package(inputDirPath, outputPath, true /*release*/, false /*force*/)
+		b, err := bundle.LoadBundle(inputDirPath)
+		if err != nil {
+			fmt.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			continue
+		}
+
+		u, err := uuid.NewV4()
+		axeUuid := u.String()
+
+		b.Metadata.AxeId = axeUuid
+
+		outputFilePath, err := b.CreatePackage(outputPath, true /*release*/, false /*force*/)
 		if err != nil {
 			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
 			continue
 		}
 		fmt.Printf("* Created axe in %v.\n", outputFilePath)
 
-		u, err := uuid.NewV4()
-		axeUuid := u.String()
-
-		newOutputFilePath := path.Join(path.Dir(outputFilePath), metadata.PluginName+"-"+axeUuid+".axe")
-		rx := regexp.MustCompile(`\.axe$`)
-		outputMd5Path := rx.ReplaceAllString(outputFilePath, ".md5")
-		newOutputMd5Path := path.Join(path.Dir(outputMd5Path), metadata.PluginName+"-"+axeUuid+".md5")
-
-		fmt.Printf("About to rename:\n%v\t%v\n%v\t%v", outputFilePath, newOutputFilePath, outputMd5Path, newOutputMd5Path)
-
-		err = os.Rename(outputFilePath, newOutputFilePath)
-		if err != nil {
-			fmt.Printf("Warning: could not rename axe %v. Deleting axe and md5.\n", outputFilePath)
-			if err := os.Remove(outputFilePath); err != nil {
-				fmt.Printf("Warning: could not rename nor delete temporary axe at %v", outputFilePath)
-			}
-			if err := os.Remove(outputMd5Path); err != nil {
-				fmt.Printf("Warning: could not rename nor delete temporary md5 at %v", outputMd5Path)
-			}
-			continue
-		}
-
-		err = os.Rename(outputMd5Path, newOutputMd5Path)
-		if err != nil {
-			fmt.Printf("Warning: could not rename md5 %v. Deleting axe and md5.\n", outputMd5Path)
-			if err := os.Remove(outputMd5Path); err != nil {
-				fmt.Printf("Warning: could not rename nor delete temporary md5 at %v", outputMd5Path)
-			}
-			if err := os.Remove(newOutputFilePath); err != nil {
-				fmt.Printf("Warning: could not rename nor delete axe at %v", newOutputFilePath)
-			}
-			continue
-		}
-
-		metadata.AxeId = axeUuid
-
-		mrshld, _ := json.MarshalIndent(metadata, "", "  ")
+		mrshld, _ := json.MarshalIndent(b.Metadata, "", "  ")
 		fmt.Println("Pushing to Relaxe:\n" + string(mrshld))
 		c.Insert()
 	}
@@ -201,7 +175,12 @@ func buildToDirectory(inputList []string, outputPath string) {
 	}
 
 	for _, inputDirPath := range inputList {
-		_, outputFilePath, err := bundle.Package(inputDirPath, outputPath, release, force)
+		b, err := bundle.LoadBundle(inputDirPath)
+		if err != nil {
+			fmt.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			continue
+		}
+		outputFilePath, err := b.CreatePackage(outputPath, release, force)
 		if err != nil {
 			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
 			continue
