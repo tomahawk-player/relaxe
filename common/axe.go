@@ -52,11 +52,11 @@ type Axe_v2 struct {
 		Email string `json:"email"`
 	} `json:"authors"`
 	License           string `json:"license"` //Allowed values: GPL3, BSD, MIT, X11, ...
-	CustomLicenseText string `json:"customLicenseText,omitempty"`
+	CustomLicenseText string `json:"customLicenseText,omitempty" bson:",omitempty"`
 	BundleVersion     string `json:"bundleVersion"`
 	Description       string `json:"description"`
 	Platform          string `json:"platform"`
-	Revision          string `json:"revision,omitempty"`
+	Revision          string `json:"revision,omitempty" bson:",omitempty"`
 	Timestamp         int64  `json:"timestamp"`
 	TomahawkVersion   string `json:"tomahawkVersion"`
 	Version           string `json:"version"`
@@ -68,8 +68,8 @@ type Axe_v2 struct {
 		Scripts   []string `json:"scripts"`
 		Resources []string `json:"resources"`
 	} `json:"manifest"`
-	Features        []string `json:"features,omitempty"`        //only if type == resolver/javascript
-	BinarySignature string   `json:"binarySignature,omitempty"` //only if type == resolver/binary
+	Features        []string `json:"features,omitempty" bson:",omitempty"`        //only if type == resolver/javascript
+	BinarySignature string   `json:"binarySignature,omitempty" bson:",omitempty"` //only if type == resolver/binary
 
 	// Only used on Relaxe, do *not* set in source metadata.json
 	AxeId string `json:"axeId,omitempty"`
