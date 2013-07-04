@@ -25,6 +25,7 @@ import (
 	"github.com/teo/relaxe/common"
 	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -71,7 +72,7 @@ func LoadBundle(inputDirPath string) (*Bundle, error) {
 
 	// mangle a bit for backwards compatibility with v1 metadata.json
 	if metadata.Author != "" || metadata.Email != "" {
-		fmt.Println("Warning: author and email fields are deprecated in metadata.json. Replace them with Authors array.")
+		fmt.Printf("Warning: author and email fields for %v are deprecated.\n", metadata.PluginName)
 		if len(metadata.Authors) == 0 {
 			metadata.Authors = append(metadata.Authors, struct {
 				Name  string `json:"name"`
@@ -108,7 +109,7 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 
 	ex, err := util.ExistsFile(outputFilePath)
 	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
-		fmt.Printf("* %v already exists, skipping.\n", outputFileName)
+		log.Printf("* %v already exists, skipping.\n", outputFileName)
 		return outputFilePath, nil
 	}
 
@@ -124,7 +125,7 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 		if err == nil { //we are in a git repo
 			metadata.Revision = strings.TrimSpace(string(revision))
 		} else {
-			fmt.Printf("Warning: cannot get revision hash for %v-%v.\n", pluginName, version)
+			log.Printf("Warning: cannot get revision hash for %v-%v.\n", pluginName, version)
 		}
 	}
 
@@ -189,7 +190,7 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 
 	sumValue, err := util.Md5sum(outputFilePath)
 	if err != nil {
-		fmt.Printf("Warning: could not create MD5 hash file for %v.\n", outputFileName)
+		log.Printf("Warning: could not create MD5 hash file for %v.\n", outputFileName)
 	}
 	sumValue += "\t" + outputFileName
 	sumFilePath := path.Join(outputDirPath, sumFileName)

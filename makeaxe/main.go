@@ -29,6 +29,7 @@ import (
 	"io/ioutil"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -45,12 +46,12 @@ var (
 	release bool
 	force   bool
 	help    bool
-	ver     bool
+	verbose bool
 	relaxe  bool
 )
 
 func usage() {
-	fmt.Printf("*** %v - %v ***\n\n", programName, programDescription)
+	fmt.Printf("*** %v %v - %v ***\n\n", programName, programVersion, programDescription)
 	fmt.Println("Usage: ./makeaxe [OPTIONS] SOURCE [DESTINATION|CONFIG]")
 	fmt.Println("OPTIONS")
 	flag.VisitAll(func(f *flag.Flag) {
@@ -70,10 +71,6 @@ func usage() {
 	fmt.Println("\tCONFIG\t\tOnly when publishing to Relaxe (--relaxe, -x), the path of the Relaxe configuration file.")
 }
 
-func version() {
-	fmt.Printf("%v, version %v\n", programName, programVersion)
-}
-
 func die(message string) {
 	fmt.Println(message)
 	fmt.Println("See ./makeaxe --help for usage information.")
@@ -86,7 +83,7 @@ func init() {
 		flagReleaseUsage = "--release, -r\tskip trying to add the git revision hash to a bundle"
 		flagForceUsage   = "--force, -f\tbuild a bundle and overwrite even if the destination directory already contains a bundle of the same name and version"
 		flagHelpUsage    = "--help, -h\tthis help message"
-		flagVersionUsage = "--version, -v\tshow version information"
+		flagVerbose      = "--verbose, -v\tshow verbose output"
 		flagRelaxeUsage  = "--relaxe, -x\tpublish resolvers on a Relaxe instance with the given config file, implies --release and ignores --force and DESTINATION"
 	)
 	flag.BoolVar(&all, "all", false, flagAllUsage)
@@ -97,8 +94,8 @@ func init() {
 	flag.BoolVar(&force, "f", false, flagForceUsage)
 	flag.BoolVar(&help, "help", false, flagHelpUsage)
 	flag.BoolVar(&help, "h", false, flagHelpUsage)
-	flag.BoolVar(&ver, "version", false, flagVersionUsage)
-	flag.BoolVar(&ver, "v", false, flagVersionUsage)
+	flag.BoolVar(&verbose, "verbose", false, flagVerbose)
+	flag.BoolVar(&verbose, "v", false, flagVerbose)
 	flag.BoolVar(&relaxe, "relaxe", false, flagRelaxeUsage)
 	flag.BoolVar(&relaxe, "x", false, flagRelaxeUsage)
 }
@@ -118,7 +115,7 @@ func preparePaths(inputPath string) []string {
 			metadataPath := path.Join(realInputPath, "content", "metadata.json")
 			ex, err := util.ExistsFile(metadataPath)
 			if !ex || err != nil {
-				fmt.Printf("%v does not seem to be an axe directory, skipping.\n", entry.Name())
+				log.Printf("%v does not seem to be an axe directory, skipping.\n", entry.Name())
 				continue
 			}
 			inputList = append(inputList, realInputPath)
@@ -142,24 +139,24 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 	}
 	c := session.DB("relaxe").C("axes")
 
-	fmt.Println("Woohoo, mgo collection:" + c.FullName)
+	log.Println("Connected to Relaxe MongoDB instance, collection: " + c.FullName)
 
 	outputPath := relaxeConfig.CacheDirectory
 	for _, inputDirPath := range inputList {
 		b, err := bundle.LoadBundle(inputDirPath)
 		if err != nil {
-			fmt.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			log.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
 			continue
 		}
 
 		count, err := c.Find(bson.M{"pluginname": b.Metadata.PluginName, "version": b.Metadata.Version}).Count()
 
 		if err != nil {
-			fmt.Printf("Warning: Relaxe database error. %v\n", err.Error())
+			log.Printf("Warning: Relaxe database error. %v\n", err.Error())
 			continue
 		}
 		if count != 0 { //if Relaxe already has axes of the same pluginName and version
-			fmt.Printf("Warning: axe %v-%v is already published on Relaxe. Skipping.\n", b.Metadata.PluginName, b.Metadata.Version)
+			log.Printf("Warning: axe %v-%v is already published on Relaxe, skipping.\n", b.Metadata.PluginName, b.Metadata.Version)
 			continue
 		}
 
@@ -170,13 +167,13 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 
 		outputFilePath, err := b.CreatePackage(outputPath, true /*release*/, false /*force*/)
 		if err != nil {
-			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			log.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
 			continue
 		}
-		fmt.Printf("* Created axe in %v.\n", outputFilePath)
+		log.Printf("* Created axe in %v.\n", outputFilePath)
 
 		mrshld, _ := json.MarshalIndent(b.Metadata, "", "  ")
-		fmt.Println("Pushing to Relaxe:\n" + string(mrshld))
+		log.Println("* Pushing to Relaxe:\n" + string(mrshld))
 		c.Insert(b.Metadata)
 	}
 }
@@ -189,15 +186,15 @@ func buildToDirectory(inputList []string, outputPath string) {
 	for _, inputDirPath := range inputList {
 		b, err := bundle.LoadBundle(inputDirPath)
 		if err != nil {
-			fmt.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			log.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
 			continue
 		}
 		outputFilePath, err := b.CreatePackage(outputPath, release, force)
 		if err != nil {
-			fmt.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			log.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
 			continue
 		}
-		fmt.Printf("* Created axe in %v.\n", outputFilePath)
+		log.Printf("* Created axe in %v.\n", outputFilePath)
 	}
 }
 
@@ -209,9 +206,8 @@ func main() {
 		return
 	}
 
-	if ver {
-		version()
-		return
+	if !verbose {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	if len(flag.Args()) == 0 {
