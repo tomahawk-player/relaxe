@@ -33,6 +33,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -127,7 +128,7 @@ func preparePaths(inputPath string) []string {
 	return inputList
 }
 
-func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
+func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) string {
 	if !relaxe {
 		die("Error: cannot push to Relaxe in directory mode.")
 	}
@@ -141,11 +142,16 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 
 	log.Println("Connected to Relaxe MongoDB instance, collection: " + c.FullName)
 
+	built := []string{}
+	errors := []string{}
+	skipped := []string{}
+
 	outputPath := relaxeConfig.CacheDirectory
 	for _, inputDirPath := range inputList {
 		b, err := bundle.LoadBundle(inputDirPath)
 		if err != nil {
 			log.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			skipped = append(skipped, path.Base(inputDirPath))
 			continue
 		}
 
@@ -153,10 +159,12 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 
 		if err != nil {
 			log.Printf("Warning: Relaxe database error. %v\n", err.Error())
+			errors = append(errors, path.Base(inputDirPath))
 			continue
 		}
 		if count != 0 { //if Relaxe already has axes of the same pluginName and version
 			log.Printf("Warning: axe %v-%v is already published on Relaxe, skipping.\n", b.Metadata.PluginName, b.Metadata.Version)
+			skipped = append(skipped, path.Base(inputDirPath))
 			continue
 		}
 
@@ -168,6 +176,7 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 		outputFilePath, err := b.CreatePackage(outputPath, true /*release*/, false /*force*/)
 		if err != nil {
 			log.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			errors = append(errors, path.Base(inputDirPath))
 			continue
 		}
 		log.Printf("* Created axe in %v.\n", outputFilePath)
@@ -175,27 +184,72 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) {
 		mrshld, _ := json.MarshalIndent(b.Metadata, "", "  ")
 		log.Println("* Pushing to Relaxe:\n" + string(mrshld))
 		c.Insert(b.Metadata)
+
+		built = append(built, "UUID:"+axeUuid+"\t"+b.Metadata.PluginName+"-"+b.Metadata.Version)
 	}
+
+	preamble := fmt.Sprintf("Relaxe instance at %v; pushing to cache directory: %v\n", strings.Join(session.LiveServers(), ", "), outputPath)
+	return makeSummary(preamble, built, errors, skipped)
 }
 
-func buildToDirectory(inputList []string, outputPath string) {
+func buildToDirectory(inputList []string, outputPath string) string {
 	if relaxe {
 		die("Error: cannot build to directory in Relaxe mode.")
 	}
+
+	built := []string{}
+	errors := []string{}
+	skipped := []string{}
 
 	for _, inputDirPath := range inputList {
 		b, err := bundle.LoadBundle(inputDirPath)
 		if err != nil {
 			log.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			skipped = append(skipped, path.Base(inputDirPath))
 			continue
 		}
 		outputFilePath, err := b.CreatePackage(outputPath, release, force)
 		if err != nil {
-			log.Printf("Warning: could not build axe for directory %v.\n", path.Base(inputDirPath))
+			log.Printf("Warning: could not build axe for directory %v. %v\n", path.Base(inputDirPath), err.Error())
+			if outputFilePath != "" { //means we are not creating just because the axe already exists
+				skipped = append(skipped, path.Base(inputDirPath))
+			} else {
+				errors = append(errors, path.Base(inputDirPath))
+			}
 			continue
 		}
 		log.Printf("* Created axe in %v.\n", outputFilePath)
+		built = append(built, path.Base(outputFilePath))
 	}
+
+	return makeSummary("Output directory: "+outputPath+"\n", built, errors, skipped)
+}
+
+func makeSummary(preamble string, built []string, errors []string, skipped []string) string {
+	var (
+		builtText   string
+		errorsText  string
+		skippedText string
+	)
+	if len(built) == 0 {
+		builtText = fmt.Sprint("No axes built\n")
+	} else {
+		builtText = fmt.Sprintf("Axes built: %v\n"+
+			"    * %v\n", len(built), strings.Join(built, "\n    * "))
+	}
+
+	if len(errors) != 0 {
+		errorsText = fmt.Sprintf("Build errors: %v\n"+
+			"    * %v\n", len(errors), strings.Join(errors, "\n    * "))
+	}
+
+	if len(skipped) != 0 {
+		skippedText = fmt.Sprintf("Directories skipped: %v\n"+
+			"    * %v\n", len(skipped), strings.Join(skipped, "\n    * "))
+	}
+
+	summary := fmt.Sprintf("*** makeaxe Summary ***\n\n%v%v%v%v", preamble, builtText, errorsText, skippedText)
+	return summary
 }
 
 func main() {
@@ -229,6 +283,8 @@ func main() {
 
 	inputList := preparePaths(inputPath)
 
+	var summary string
+
 	// Prepare output directory path and build
 	if relaxe {
 		if len(flag.Args()) != 2 {
@@ -247,7 +303,7 @@ func main() {
 			die(err.Error())
 		}
 
-		buildToRelaxe(inputList, *config)
+		summary = buildToRelaxe(inputList, *config)
 
 	} else {
 		var outputPath string
@@ -264,6 +320,8 @@ func main() {
 			}
 		}
 
-		buildToDirectory(inputList, outputPath)
+		summary = buildToDirectory(inputList, outputPath)
 	}
+
+	fmt.Printf(summary)
 }
