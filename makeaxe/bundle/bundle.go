@@ -81,6 +81,10 @@ func LoadBundle(inputDirPath string) (*Bundle, error) {
 		}
 	}
 
+	if metadata.License == "" {
+		fmt.Printf("Warning: license field is empty for %v.\n", metadata.PluginName)
+	}
+
 	// Bundle version to distinguish one bundle format from another.
 	metadata.BundleVersion = bundleVersion
 
@@ -110,7 +114,7 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 	ex, err := util.ExistsFile(outputFilePath)
 	if !force && (ex || err != nil) { //if we don't force, and the target either exists or we're not sure
 		log.Printf("* %v already exists, skipping.\n", outputFileName)
-		return outputFilePath, nil
+		return outputFilePath, fmt.Errorf("Axe file %v already exists, skipping.", outputFileName)
 	}
 
 	// Let's add some stuff to the metadata file, this is information that's much
