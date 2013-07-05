@@ -20,7 +20,7 @@ package common
 
 import ()
 
-type Axe_v1 struct {
+type Axe_v1 struct { // deprecated
 	Name            string `json:"name"`
 	Author          string `json:"author"`
 	BundleVersion   string `json:"bundleVersion"`

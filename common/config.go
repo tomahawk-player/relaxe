@@ -26,23 +26,28 @@ import (
 )
 
 type RelaxeConfig struct {
-	Database struct {
-		ConnectionString string
-	}
-	CacheDirectory string
+	CacheDirectory string `json:"cacheDirectory"`
+	Database       struct {
+		ConnectionString string `json:"connectionString"`
+	} `json:"database"`
+	Server struct {
+		Host      string `json:"host"`
+		Port      uint16 `json:"port"`
+		CachePath string `json:"cachePath"`
+	} `json:"server"`
 }
 
 func LoadConfig(path string) (*RelaxeConfig, error) {
 	configFileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error: cannot read Relaxe configuration file.")
+		return nil, fmt.Errorf("Error: cannot read Relaxe configuration file: " + path)
 	}
 
 	configFileBytes, _ = jsonmin.Minify(configFileBytes, false)
 	var config RelaxeConfig
 	err = json.Unmarshal(configFileBytes, &config)
 	if err != nil {
-		return nil, fmt.Errorf("Error: bad configuration file format.")
+		return nil, err
 	}
 	return &config, nil
 }
