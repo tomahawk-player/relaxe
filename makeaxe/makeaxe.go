@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"github.com/nu7hatch/gouuid"
 	"github.com/teo/relaxe/common"
+	"github.com/teo/relaxe/common/util"
 	"github.com/teo/relaxe/makeaxe/bundle"
-	"github.com/teo/relaxe/makeaxe/util"
 	"io/ioutil"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -99,6 +99,8 @@ func init() {
 	flag.BoolVar(&verbose, "v", false, flagVerbose)
 	flag.BoolVar(&relaxe, "relaxe", false, flagRelaxeUsage)
 	flag.BoolVar(&relaxe, "x", false, flagRelaxeUsage)
+
+	flag.Usage = usage
 }
 
 func preparePaths(inputPath string) []string {

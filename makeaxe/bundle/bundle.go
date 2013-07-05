@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/teo/relaxe/common"
-	"github.com/teo/relaxe/makeaxe/util"
+	"github.com/teo/relaxe/common/util"
 	"io/ioutil"
 	"log"
 	"os"
