@@ -190,6 +190,15 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) string 
 		built = append(built, "UUID:"+axeUuid+"\t"+b.Metadata.PluginName+"-"+b.Metadata.Version)
 	}
 
+	if ex, err := util.ExistsFile(path.Join(outputPath, "index.html")); !ex && err == nil {
+		indexText := fmt.Sprintf("<html><head><title>Relaxe server</title></head>" +
+			"<body>Relaxe cache directory. Move along, nothing to see here.</body></html>")
+		err := ioutil.WriteFile(path.Join(outputPath, "index.html"), []byte(indexText), 0644)
+		if err != nil {
+			log.Printf("Warning: could not write Relaxe index file.\n")
+		}
+	}
+
 	preamble := fmt.Sprintf("Relaxe instance at %v; pushing to cache directory: %v\n", strings.Join(session.LiveServers(), ", "), outputPath)
 	return makeSummary(preamble, built, errors, skipped)
 }
