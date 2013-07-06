@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 )
 
 func exists(path string) (bool, error) {
@@ -71,4 +73,62 @@ func Md5sum(filePath string) (string, error) {
 		return output, nil
 	}
 	return "", fmt.Errorf("Cannot open file %v to compute MD5 sum.", filePath)
+}
+
+func maxInt(a int, b int) int {
+	if a < b {
+		return b
+	}
+	return a
+}
+
+// returns a negative value if first is less than second, a positive value if first
+// is more than second, and 0 if they are equal
+func VersionCompare(first string, second string) (verdict int) {
+	verdict = 0
+
+	if first == second {
+		return
+	}
+
+	sFirst := strings.Split(first, ".")
+	sSecond := strings.Split(second, ".")
+
+	depth := maxInt(len(sFirst), len(sSecond))
+
+	if lf := len(sFirst); lf < len(sSecond) {
+		for i := 0; i < depth-lf; i++ {
+			sFirst = append(sFirst, "0")
+		}
+	}
+
+	if ls := len(sSecond); ls < len(sFirst) {
+		for i := 0; i < depth-ls; i++ {
+			sSecond = append(sSecond, "0")
+		}
+	}
+
+	for i := 0; i < depth; i++ {
+		a, er1 := strconv.ParseUint(sFirst[i], 10, 16)
+		b, er2 := strconv.ParseUint(sSecond[i], 10, 16)
+
+		if er1 == nil && er2 == nil {
+			if a < b {
+				verdict = -1
+				break
+			} else if b < a {
+				verdict = 1
+				break
+			}
+		} else { //fallback: string comparison
+			if sFirst[i] < sSecond[i] {
+				verdict = -1
+				break
+			} else if sSecond[i] < sFirst[i] {
+				verdict = 1
+				break
+			}
+		}
+	}
+	return
 }
