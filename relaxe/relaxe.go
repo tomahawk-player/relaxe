@@ -121,7 +121,12 @@ func main() {
 	}
 
 	// Jas router for the API
-	router := jas.NewRouter(new(Axes))
+	axes, err := NewAxes(config)
+	if err != nil {
+		die("Error: cannot start Relaxe server. Reason: " + err.Error())
+	}
+
+	router := jas.NewRouter(axes)
 	router.RequestErrorLogger = router.InternalErrorLogger
 	router.BasePath = "/v1/"
 

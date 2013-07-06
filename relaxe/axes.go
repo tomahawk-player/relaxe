@@ -19,13 +19,37 @@
 package main
 
 import (
-	"fmt"
 	"github.com/coocood/jas"
+	"github.com/teo/relaxe/common"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"log"
 )
 
-type Axes struct{}
+type Axes struct {
+	config *common.RelaxeConfig
+	c      *mgo.Collection
+}
 
-func (*Axes) Get(ctx *jas.Context) { // `GET /axes`
-	ctx.Data = "foo"
-	fmt.Println(ctx.ResponseHeader.Get("content-type") + " body: " + ctx.Data.(string))
+func NewAxes(config *common.RelaxeConfig) (*Axes, error) {
+	this := new(Axes)
+	this.config = config
+
+	// hook up to db
+	session, err := mgo.Dial(config.Database.ConnectionString)
+
+	this.c = session.DB("relaxe").C("axes")
+
+	return this, err
+}
+
+func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
+	response := []common.Axe_v2{}
+	err := this.c.Find(bson.M{}).All(&response)
+
+	if err != nil {
+		log.Println(err.Error())
+	}
+	ctx.Data = response
+	log.Println(ctx.ResponseHeader.Get("content-type") + " body: " + ctx.Data.(string))
 }
