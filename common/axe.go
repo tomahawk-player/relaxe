@@ -51,23 +51,23 @@ type Axe_v2 struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
 	} `json:"authors"`
-	License           string `json:"license"` //Allowed values: GPL3, BSD, MIT, X11, ...
-	CustomLicenseText string `json:"customLicenseText,omitempty" bson:",omitempty"`
-	BundleVersion     string `json:"bundleVersion"`
-	Description       string `json:"description"`
-	Platform          string `json:"platform"`
-	Revision          string `json:"revision,omitempty" bson:",omitempty"`
-	Timestamp         int64  `json:"timestamp"`
-	TomahawkVersion   string `json:"tomahawkVersion"`
-	Version           string `json:"version"`
-	Website           string `json:"website"`
-	Type              string `json:"type"` //Allowed values: resolver/javascript, resolver/binary
-	Manifest          struct {
+	License           string    `json:"license"` //Allowed values: GPL3, BSD, MIT, X11, ...
+	CustomLicenseText string    `json:"customLicenseText,omitempty" bson:",omitempty"`
+	BundleVersion     string    `json:"bundleVersion"`
+	Description       string    `json:"description"`
+	Platform          string    `json:"platform"`
+	Revision          string    `json:"revision,omitempty" bson:",omitempty"`
+	Timestamp         *int64    `json:"timestamp,omitempty"` //nullable
+	TomahawkVersion   string    `json:"tomahawkVersion"`
+	Version           string    `json:"version"`
+	Website           string    `json:"website"`
+	Type              string    `json:"type"` //Allowed values: resolver/javascript, resolver/binary
+	Manifest          *struct { //ptr to make it nullable
 		Icon      string   `json:"icon"`
 		Main      string   `json:"main"`
 		Scripts   []string `json:"scripts"`
 		Resources []string `json:"resources"`
-	} `json:"manifest"`
+	} `json:"manifest,omitempty"`
 	Features        []string `json:"features,omitempty" bson:",omitempty"`        //only if type == resolver/javascript
 	BinarySignature string   `json:"binarySignature,omitempty" bson:",omitempty"` //only if type == resolver/binary
 

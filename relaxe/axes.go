@@ -50,6 +50,12 @@ func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
 	if err != nil {
 		log.Println(err.Error())
 	}
+
+	for i, _ := range response {
+		response[i].Timestamp = nil
+		response[i].Manifest = nil
+	}
+
 	ctx.Data = response
 	log.Println(ctx.ResponseHeader.Get("content-type") + " body: " + ctx.Data.(string))
 }
