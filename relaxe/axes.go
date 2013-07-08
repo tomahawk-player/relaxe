@@ -54,6 +54,9 @@ func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
 	for i, _ := range response {
 		response[i].Timestamp = nil
 		response[i].Manifest = nil
+		//don't ship legacy-formatted info
+		response[i].Author = ""
+		response[i].Email = ""
 	}
 
 	ctx.Data = response
