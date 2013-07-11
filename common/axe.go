@@ -72,7 +72,8 @@ type Axe_v2 struct {
 	BinarySignature string   `json:"binarySignature,omitempty" bson:",omitempty"` //only if type == resolver/binary
 
 	// Only used on Relaxe, do *not* set in source metadata.json
-	AxeId string `json:"axeId,omitempty"`
+	AxeId     string `json:"axeId,omitempty"`
+	Downloads *int64 `json:"downloads,omitempty"`
 }
 
 func Axe_v2check(axe *Axe_v2) bool {

@@ -27,6 +27,7 @@ import (
 	"labix.org/v2/mgo/bson"
 	"log"
 	"path"
+	"strconv"
 )
 
 type Axes struct {
@@ -115,6 +116,12 @@ func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
 			//don't ship legacy-formatted info
 			response[i].Author = ""
 			response[i].Email = ""
+			if dlcount, err := this.kv.Do("GET", "dlcount_"+response[i].PluginName); dlcount != nil && err == nil {
+				idlcount, _ := strconv.ParseInt(string(dlcount.([]byte)), 10, 64)
+				response[i].Downloads = &idlcount
+			} else {
+				log.Println("Error: cannot retrieve dlcount for " + response[i].PluginName)
+			}
 		}
 
 		ctx.Data = response
