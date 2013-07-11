@@ -121,7 +121,8 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 	// easier to fill in automatically now than manually whenever.
 	//   * Timestamp of right now i.e. packaging time.
 	//   * Git revision because it makes sense, especially during development.
-	*metadata.Timestamp = time.Now().Unix()
+	now := time.Now().Unix()
+	metadata.Timestamp = &now
 	if !release {
 		gitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
 		gitCmd.Dir = this.InputDirPath
