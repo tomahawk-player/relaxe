@@ -20,6 +20,7 @@ package main
 
 import (
 	"github.com/coocood/jas"
+	"github.com/garyburd/redigo/redis"
 	"github.com/teo/relaxe/common"
 	"github.com/teo/relaxe/common/util"
 	"labix.org/v2/mgo"
@@ -31,6 +32,7 @@ import (
 type Axes struct {
 	config *common.RelaxeConfig
 	c      *mgo.Collection
+	kv     redis.Conn
 }
 
 func NewAxes(config *common.RelaxeConfig) (*Axes, error) {
@@ -39,8 +41,13 @@ func NewAxes(config *common.RelaxeConfig) (*Axes, error) {
 
 	// hook up to db
 	session, err := mgo.Dial(config.Database.ConnectionString)
+	if err != nil {
+		return this, err
+	}
 
 	this.c = session.DB("relaxe").C("axes")
+
+	this.kv, err = redis.Dial("tcp", config.KvStore.ConnectionString)
 
 	return this, err
 }
@@ -120,8 +127,14 @@ func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
 		realResponse["pluginName"] = response[0].PluginName
 		realResponse["version"] = response[0].Version
 		axeFilename := response[0].PluginName + "-" + response[0].AxeId + ".axe"
-		realResponse["contentPath"] = path.Join(config.Server.CachePath, axeFilename)
+		realResponse["contentPath"] = path.Join(this.config.Server.CachePath, axeFilename)
 		ctx.Data = realResponse
+
+		key := "dlcount_" + response[0].PluginName
+		_, err = this.kv.Do("INCR", key)
+		if err != nil {
+			log.Println("Error: could not increment download count for " + name)
+		}
 	}
 
 	if ctx.Error != nil {

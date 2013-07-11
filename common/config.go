@@ -30,6 +30,9 @@ type RelaxeConfig struct {
 	Database       struct {
 		ConnectionString string `json:"connectionString"`
 	} `json:"database"`
+	KvStore struct {
+		ConnectionString string `json:"connectionString"`
+	} `json:"kvStore"`
 	Server struct {
 		Host      string `json:"host"`
 		Port      uint16 `json:"port"`
