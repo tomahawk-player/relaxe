@@ -82,7 +82,7 @@ func maxInt(a int, b int) int {
 	return a
 }
 
-// returns a negative value if first is less than second, a positive value if first
+// returns -1 if first is less than second, 1 if first
 // is more than second, and 0 if they are equal
 func VersionCompare(first string, second string) (verdict int) {
 	verdict = 0
