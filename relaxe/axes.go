@@ -71,7 +71,9 @@ func newestAxe(axes []common.Axe_v2) *common.Axe_v2 {
 	return &axes[newestAxe]
 }
 
-func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
+// `GET /axes/:version/:platform/` 			==> []Axe_v2 trimmed
+// `GET /axes/:version/:platform/:name` 	==> { pluginName, version, contentPath }
+func (this *Axes) Get(ctx *jas.Context) {
 	tomahawkVersion := ctx.GapSegment(":tomahawkVersion")
 	platform := ctx.GapSegment(":platform")
 	name := ctx.GapSegment(":name")
@@ -148,6 +150,3 @@ func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
 		log.Println(ctx.Error)
 	}
 }
-
-// `GET /axes/:version/:platform/` 			==> []Axe_v2 trimmed
-// `GET /axes/:version/:platform/:name` 	==> { pluginName, version, contentPath }
