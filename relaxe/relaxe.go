@@ -40,7 +40,8 @@ const (
 )
 
 var (
-	help bool
+	help   bool
+	config *common.RelaxeConfig
 )
 
 func usage() {
@@ -114,7 +115,7 @@ func main() {
 
 	go sigintCatcher()
 
-	config, err := common.LoadConfig(configFilePath)
+	config, err = common.LoadConfig(configFilePath)
 	if err != nil {
 		fmt.Println(err.Error())
 		die("Cannot load config file.")

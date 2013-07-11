@@ -71,9 +71,8 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) string 
 		die("Error: cannot connect to Relaxe database. Reason: " + err.Error())
 	}
 	c := session.DB("relaxe").C("axes")
-	e := session.DB("relaxe").C("entries")
 
-	log.Println("Connected to Relaxe MongoDB instance, collections: " + c.FullName + ", " + e.FullName)
+	log.Println("Connected to Relaxe MongoDB instance, collections: " + c.FullName)
 
 	built := []string{}
 	errors := []string{}
@@ -119,17 +118,6 @@ func buildToRelaxe(inputList []string, relaxeConfig common.RelaxeConfig) string 
 		err = c.Insert(b.Metadata)
 		if err != nil {
 			log.Println(err.Error())
-		}
-
-		count, err = e.Find(bson.M{"_id": b.Metadata.PluginName}).Count()
-
-		if err != nil {
-			log.Printf("Warning: Relaxe database error. %v\n", err.Error())
-			errors = append(errors, path.Base(inputDirPath))
-			continue
-		}
-		if count == 0 { //if Relaxe doesn't have this entry yet, we add it
-			e.Insert(bson.M{"_id": b.Metadata.PluginName, "downloads": 0})
 		}
 
 		built = append(built, "UUID:"+axeUuid+"\t"+b.Metadata.PluginName+"-"+b.Metadata.Version)

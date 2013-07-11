@@ -21,9 +21,11 @@ package main
 import (
 	"github.com/coocood/jas"
 	"github.com/teo/relaxe/common"
+	"github.com/teo/relaxe/common/util"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
+	"path"
 )
 
 type Axes struct {
@@ -43,22 +45,89 @@ func NewAxes(config *common.RelaxeConfig) (*Axes, error) {
 	return this, err
 }
 
+func (*Axes) Gap() string {
+	return ":tomahawkVersion/:platform/:name"
+}
+
+func newestAxe(axes []common.Axe_v2) *common.Axe_v2 {
+	currentVersion := "0"
+	newestAxe := 0
+
+	for i, _ := range axes {
+		if util.VersionCompare(axes[i].Version, currentVersion) > 0 {
+			currentVersion = axes[i].Version
+			newestAxe = i
+		}
+	}
+
+	return &axes[newestAxe]
+}
+
 func (this *Axes) Get(ctx *jas.Context) { // `GET /axes`
+	tomahawkVersion := ctx.GapSegment(":tomahawkVersion")
+	platform := ctx.GapSegment(":platform")
+	name := ctx.GapSegment(":name")
+
 	response := []common.Axe_v2{}
-	err := this.c.Find(bson.M{}).All(&response)
+	var err error
+
+	if name == "" {
+		err = this.c.Find(bson.M{"platform": bson.M{"$in": []string{"", "any", platform}}}).All(&response)
+	} else { //name not empty
+		err = this.c.Find(bson.M{"pluginname": name,
+			"platform": bson.M{"$in": []string{"", "any", platform}}}).All(&response)
+	}
 
 	if err != nil {
 		log.Println(err.Error())
 	}
 
-	for i, _ := range response {
-		response[i].Timestamp = nil
-		response[i].Manifest = nil
-		//don't ship legacy-formatted info
-		response[i].Author = ""
-		response[i].Email = ""
+	// apply version filters
+	entries := map[string][]common.Axe_v2{}
+	for _, axe := range response {
+		if tomahawkVersion == "" || axe.TomahawkVersion == "" ||
+			util.VersionCompare(tomahawkVersion, axe.TomahawkVersion) >= 0 {
+			if entries[axe.PluginName] == nil {
+				entries[axe.PluginName] = []common.Axe_v2{}
+			}
+			entries[axe.PluginName] = append(entries[axe.PluginName], axe)
+		}
 	}
 
-	ctx.Data = response
-	log.Println(ctx.ResponseHeader.Get("content-type") + " body: " + ctx.Data.(string))
+	response = []common.Axe_v2{}
+	for _, axes := range entries {
+		response = append(response, *newestAxe(axes))
+	}
+
+	if name == "" {
+		for i, _ := range response {
+			response[i].Timestamp = nil
+			response[i].Manifest = nil
+			response[i].AxeId = ""
+			response[i].Features = []string{}
+			//don't ship legacy-formatted info
+			response[i].Author = ""
+			response[i].Email = ""
+		}
+
+		ctx.Data = response
+	} else {
+		if len(response) != 1 {
+			log.Println("Error: bad entry count for pluginName " + name)
+			return
+		}
+		realResponse := map[string]string{}
+		realResponse["pluginName"] = response[0].PluginName
+		realResponse["version"] = response[0].Version
+		axeFilename := response[0].PluginName + "-" + response[0].AxeId + ".axe"
+		realResponse["contentPath"] = path.Join(config.Server.CachePath, axeFilename)
+		ctx.Data = realResponse
+	}
+
+	if ctx.Error != nil {
+		log.Println(ctx.Error)
+	}
 }
+
+// `GET /axes/:version/:platform/` 			==> []Axe_v2 trimmed
+// `GET /axes/:version/:platform/:name` 	==> { pluginName, version, contentPath }
