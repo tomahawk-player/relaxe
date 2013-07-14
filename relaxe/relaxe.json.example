@@ -1,0 +1,16 @@
+// Main configuration file for Relaxe
+// JSON with JavaScript-style comments
+{
+    "cacheDirectory" : "/var/relaxecache",
+    "database" : {
+        "connectionString" : "mongodb://localhost:27017/relaxe"
+    },
+    "kvStore" : {
+        "connectionString" : "localhost:6379"    // Redis hostname:port
+    },
+    "server" : {
+        "host" : "127.0.0.1",
+        "port" : 34123,                          // Default: 34123
+        "cachePath" : "/cache/"                  // The path where the axes are served to the world, relative to the server root
+    }
+}
