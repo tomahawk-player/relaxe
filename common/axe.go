@@ -58,7 +58,7 @@ type Axe_v2 struct {
 	Platform          string    `json:"platform"`
 	Revision          string    `json:"revision,omitempty" bson:",omitempty"`
 	Timestamp         *int64    `json:"timestamp,omitempty"` //nullable
-	TomahawkVersion   string    `json:"tomahawkVersion"`
+	ApiVersion        string    `json:"apiVersion"`
 	Version           string    `json:"version"`
 	Website           string    `json:"website"`
 	Type              string    `json:"type"` //Allowed values: resolver/javascript, resolver/binary

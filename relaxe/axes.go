@@ -54,7 +54,7 @@ func NewAxes(config *common.RelaxeConfig) (*Axes, error) {
 }
 
 func (*Axes) Gap() string {
-	return ":tomahawkVersion/:platform/:name"
+	return ":resolverApiVersion/:platform/:name"
 }
 
 func newestAxe(axes []common.Axe_v2) *common.Axe_v2 {
@@ -74,7 +74,7 @@ func newestAxe(axes []common.Axe_v2) *common.Axe_v2 {
 // `GET /axes/:version/:platform/` 			==> []Axe_v2 trimmed
 // `GET /axes/:version/:platform/:name` 	==> { pluginName, version, contentPath }
 func (this *Axes) Get(ctx *jas.Context) {
-	tomahawkVersion := ctx.GapSegment(":tomahawkVersion")
+	resolverApiVersion := ctx.GapSegment(":resolverApiVersion")
 	platform := ctx.GapSegment(":platform")
 	name := ctx.GapSegment(":name")
 
@@ -95,8 +95,8 @@ func (this *Axes) Get(ctx *jas.Context) {
 	// apply version filters
 	entries := map[string][]common.Axe_v2{}
 	for _, axe := range response {
-		if tomahawkVersion == "" || axe.TomahawkVersion == "" ||
-			util.VersionCompare(tomahawkVersion, axe.TomahawkVersion) >= 0 {
+		if resolverApiVersion == "" || axe.ApiVersion == "" ||
+			util.VersionCompare(resolverApiVersion, axe.ApiVersion) >= 0 {
 			if entries[axe.PluginName] == nil {
 				entries[axe.PluginName] = []common.Axe_v2{}
 			}
