@@ -1,3 +1,10 @@
-relaxe
+Relaxe
 ======
-Resolver packager. Nothing to see here yet.
+Relaxe is a Tomahawk bundles distribution system.
+Makeaxe is a packager for Tomahawk bundles.
+
+See `makeaxe --help` and `relaxe --help` for usage.
+
+Dependencies for Relaxe:
+* MongoDB
+* Redis
