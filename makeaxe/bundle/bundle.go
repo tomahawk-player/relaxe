@@ -66,8 +66,13 @@ func LoadBundle(inputDirPath string) (*Bundle, error) {
 	metadata := new(common.Axe_v2)
 	err = json.Unmarshal(metadataBytes, metadata)
 
-	if err != nil || !common.Axe_v2check(metadata) {
-		return nil, fmt.Errorf("Bad metadata file in %v.", metadataPath)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot unmarshal metadata file %v. JSON error: %v.",
+			metadataPath, err.Error())
+	}
+
+	if !common.Axe_v2check(metadata) {
+		return nil, fmt.Errorf("Bad or incomplete metadata in file %v.", metadataPath)
 	}
 
 	// mangle a bit for backwards compatibility with v1 metadata.json

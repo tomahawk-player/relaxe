@@ -149,6 +149,7 @@ func buildToDirectory(inputList []string, outputPath string) string {
 		b, err := bundle.LoadBundle(inputDirPath)
 		if err != nil {
 			log.Printf("Warning: could not load bundle from directory %v.\n", inputDirPath)
+			log.Printf("\tStatus: %v", err)
 			skipped = append(skipped, path.Base(inputDirPath))
 			continue
 		}
