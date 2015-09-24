@@ -21,7 +21,7 @@ package util
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -65,12 +65,15 @@ func ExistsFile(path string) (bool, error) {
 }
 
 func Md5sum(filePath string) (string, error) {
-	if contents, err := ioutil.ReadFile(filePath); err == nil {
+	f, err := os.Open(filePath)
+	if err == nil {
+		defer f.Close()
+
 		h := md5.New()
-		h.Write(contents)
-		sum := h.Sum(nil)
-		output := fmt.Sprintf("%x", sum)
-		return output, nil
+		if _, err := io.Copy(h, f); err == nil {
+			sum := h.Sum(nil)
+			return fmt.Sprintf("%x", sum), nil
+		}
 	}
 	return "", fmt.Errorf("Cannot open file %v to compute MD5 sum.", filePath)
 }
