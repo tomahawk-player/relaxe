@@ -197,6 +197,7 @@ func (this *Bundle) CreatePackage(outputDirPath string, release bool, force bool
 	if err != nil {
 		return "", err
 	}
+	z.Close()
 
 	sumValue, err := util.Md5sum(outputFilePath)
 	if err != nil {
